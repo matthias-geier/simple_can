@@ -8,24 +8,21 @@ module SimpleCan
   class Unauthorized < StandardError; end
 
   def self.included(mod)
-    if strategy.nil?
-      puts "Choosing the basic strategy. To remove this message " \
-        "set 'SimpleCan.strategy' to your strategy module/class " \
-        "before using the module"
-      self.strategy = BasicStrategy
-    end
     meta = class << mod; self; end
     meta.send(:alias_method, :orig_method_added, :method_added)
     meta.send(:alias_method, :orig_singleton_method_added,
       :singleton_method_added)
     mod.extend(ClassMethods)
 
+    mod.strategy_set!
     strategy.roles.each do |role|
       [meta, mod].each do |scope|
         scope.send(:define_method, "#{role}?") do
+          mod.strategy_set!
           SimpleCan.strategy.test(role, mod.capability)
         end
         scope.send(:define_method, "#{role}!") do
+          mod.strategy_set!
           next if SimpleCan.strategy.test(role, mod.capability)
           raise SimpleCan::Unauthorized, "unauthorized with #{role}"
         end
@@ -34,6 +31,10 @@ module SimpleCan
   end
 
   module ClassMethods
+    def strategy_set!
+      raise "strategy missing" if SimpleCan.strategy.nil?
+    end
+
     def method_added(method)
       orig_method_added(method)
       add_method_to(self, method)
@@ -45,6 +46,8 @@ module SimpleCan
     end
 
     def add_method_to(scope, method)
+      strategy_set!
+
       klass = self
       method = method.to_s
       role, name, do_raise = SimpleCan.strategy.roles.reduce(nil) do |acc, r|
@@ -68,6 +71,7 @@ module SimpleCan
     end
 
     def capability=(role)
+      strategy_set!
       Thread.current[THREAD_VAR] = SimpleCan.strategy.to_capability(role)
     end
 
