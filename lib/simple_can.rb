@@ -8,13 +8,14 @@ module SimpleCan
   class Unauthorized < StandardError; end
 
   def self.included(mod)
+    mod.strategy_set!
+
     meta = class << mod; self; end
     meta.send(:alias_method, :orig_method_added, :method_added)
     meta.send(:alias_method, :orig_singleton_method_added,
       :singleton_method_added)
     mod.extend(ClassMethods)
 
-    mod.strategy_set!
     strategy.roles.each do |role|
       [meta, mod].each do |scope|
         scope.send(:define_method, "#{role}?") do
