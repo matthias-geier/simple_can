@@ -8,8 +8,7 @@ module SimpleCan
   class Unauthorized < StandardError; end
 
   def self.included(mod)
-    mod.strategy_set!
-
+    strategy_set!
     meta = class << mod; self; end
     meta.send(:alias_method, :orig_method_added, :method_added)
     meta.send(:alias_method, :orig_singleton_method_added,
@@ -31,9 +30,13 @@ module SimpleCan
     end
   end
 
+  def self.strategy_set!
+    raise "strategy missing" if SimpleCan.strategy.nil?
+  end
+
   module ClassMethods
     def strategy_set!
-      raise "strategy missing" if SimpleCan.strategy.nil?
+      SimpleCan.strategy_set!
     end
 
     def method_added(method)
